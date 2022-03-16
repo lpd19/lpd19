@@ -162,3 +162,11 @@ def shap_plot(j):
 # --- Force plot that will get the result of the first row of X_test    
 shap_plot(0)
 
+#%%External validation
+
+ext_val_X = validation[['API', 'Excipient1', 'Excipient2', 'Excipient3', 'Excipient4','x10', 'x50', 'x90', 'SMD', 'a10', 'a50', 'a90', 's10', 's50', 's90', 'BD(g/ml)']]
+ext_val_y = MLP.predict(ext_val_X)
+ext_val_y
+
+probability = MLP.predict_proba(ext_val_X)
+probability
