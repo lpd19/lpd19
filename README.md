@@ -10,3 +10,4 @@ Versions of packages and libraries:
 - scikit-learn    1.0.2
 - shap    0.40
 - spyder    3.3.6
+- xgboost     1.5.0
