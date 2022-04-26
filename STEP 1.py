@@ -1,38 +1,35 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Mar  4 08:31:06 2022
-
-@author: ftb19213
-"""
-
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plts
+import matplotlib.pyplot as plt
 
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import ShuffleSplit
 
 #%%
-
+path = r'C:\Users\ftb19213\Desktop\PhD\2022\Data\SEA'
+file = r'C:\Users\ftb19213\Desktop\PhD\2021\Data\IMPORTANT DATASETS\Model_A.csv'
+validation= r'C:\Users\ftb19213\Desktop\PhD\2021\Data\IMPORTANT DATASETS\External_data_validation.csv'
 data = pd.read_csv(file)
 validation = pd.read_csv(validation)
 
 #%%
 
 # -- DEfining variables
-X = data[['API', 'Excipient1', 'Excipient2', 'Excipient3', 'Excipient4','x10', 'x50', 'x90', 'SMD', 'a10', 'a50', 'a90', 's10', 's50', 's90', 'BD(g/ml)']]
+
+X = data.drop(['FFc', 'Class', '2Classes', 'Material'], axis =1)
+data[['2Classes']] = data[['2Classes']].astype('category')
 y = data[['2Classes']]
 
-# -- Splitting the data if we use train/test so sample the data
-#from sklearn.model_selection import train_test_split
-#X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, shuffle = True)
-
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import ShuffleSplit
 
 #%% KNN classifier
-
 from sklearn.neighbors import KNeighborsClassifier
-kNN = KNeighborsClassifier(algorithm="brute", n_neighbors=11, metric="mahalanobis", metric_params={'VI': np.cov(X)})
+
+kNN = KNeighborsClassifier()
+#kNN = KNeighborsClassifier(algorithm="brute", n_neighbors=11, metric="mahalanobis", metric_params={'VI': np.cov(X)})
 kNN.fit(X,y.values.ravel())
+
+#%% -- Evaluate kNN
+
 cv = ShuffleSplit(n_splits=10, test_size=0.2, random_state=10)
 scores = cross_val_score(kNN, X, y.values.ravel(), scoring="roc_auc", cv=cv)
 
@@ -119,54 +116,60 @@ scores_AB = cross_val_score(AB, X, y.values.ravel(), scoring = "roc_auc",  cv=cv
 
 print("%0.2f accuracy with a standard deviation of %0.2f" % (scores_AB.mean(), scores_AB.std()))
 
+#%%
+
+from sklearn.ensemble import GradientBoostingClassifier
+
+GB = GradientBoostingClassifier()
+GB.fit(X_train, y_train.values.ravel())
+
+cv_GB = ShuffleSplit(n_splits=10, test_size=0.2, random_state=10)
+scores_GB = cross_val_score(GB, X, y.values.ravel(), scoring = "roc_auc",  cv=cv_GB)
+
+print("%0.2f accuracy with a standard deviation of %0.2f" % (scores_GB.mean(), scores_GB.std()))
+
+#%%External validation
+
+ext_val_X = validation.drop(['FFc', 'Class', '2Classes', 'Material', '1/ffc', 'log ffc'], axis =1)
+ext_val_y = MLP.predict(ext_val_X)
+ext_val_y
 
 #%%
 
-# --- SHAP values
+probability = MLP.predict_proba(ext_val_X)
+probability
 
+#%% -- SHAP values SHAP (SHapley Additive exPlanations) is a game theoretic approach to explain the output
+# of any machine learning model. It connects optimal credit allocation with local explanations using the 
+#classic Shapley values from game theory and their related extensions.
+
+# --- First, split into train and test
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, shuffle = True)
+
+#%%
+# -- import SHAP
 import shap
-
-explainer = shap.TreeExplainer(clf)
-
-shap_values = explainer.shap_values(X)
-
-# Plot variance importance
-shap.summary_plot(shap_values, X, plot_type = 'bar')
-
-#Plot impact on the model
-shap.summary_plot(shap_values, X)
-
-# Plot force graph
-X_validation = validation[['API', 'Excipient1', 'Excipient2', 'Excipient3', 'Excipient4','x10', 'x50', 'x90', 'SMD', 'a10', 'a50', 'a90', 's10', 's50', 's90', 'BD(g/ml)']]
-y_vallidation = validation[['2Classes']]
-
-
-X_output = X_validation
-X_output.loc[:,'predict'] = np.round(clf.predict(X_output),2)
-
-# Randomly pick some observations
-random_picks = np.arange(1,33,3) # Every 10 rows
-S = X_output.iloc[random_picks]
-# Initialize your Jupyter notebook with initjs(), otherwise you will get an error message.
 shap.initjs()
 
-# Write in a function
+explainer = shap.Explainer(GB)
+shap_values = explainer(X)
+
+shap.plots.beeswarm(shap_values)
+shap.plots.bar(shap_values)
+
+#%% Froce plot
+
+shap.initjs()
+
 def shap_plot(j):
-    explainerModel = shap.TreeExplainer(clf)
-    shap_values_Model = explainerModel.shap_values(S)
-    p = shap.force_plot(explainerModel.expected_value, shap_values_Model[j], S.iloc[[j]], matplotlib = True, show = False)
+    explainer = shap.Explainer(GB)
+    shap_values = explainer.shap_values(X_test)
+    p = shap.force_plot(explainer.expected_value, shap_values[0,:], X_test.iloc[0,:], matplotlib = True, show = False)
     plt.savefig('tmp.svg')
     plt.close()
     return(p)
 
 # --- Force plot that will get the result of the first row of X_test    
 shap_plot(0)
-
-#%%External validation
-
-ext_val_X = validation[['API', 'Excipient1', 'Excipient2', 'Excipient3', 'Excipient4','x10', 'x50', 'x90', 'SMD', 'a10', 'a50', 'a90', 's10', 's50', 's90', 'BD(g/ml)']]
-ext_val_y = MLP.predict(ext_val_X)
-ext_val_y
-
-probability = MLP.predict_proba(ext_val_X)
-probability
