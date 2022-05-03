@@ -163,13 +163,27 @@ shap.plots.bar(shap_values)
 
 shap.initjs()
 
-def shap_plot(j):
-    explainer = shap.Explainer(GB)
-    shap_values = explainer.shap_values(X_test)
-    p = shap.force_plot(explainer.expected_value, shap_values[0,:], X_test.iloc[0,:], matplotlib = True, show = False)
-    plt.savefig('tmp.svg')
-    plt.close()
-    return(p)
+#%%
 
-# --- Force plot that will get the result of the first row of X_test    
-shap_plot(0)
+import shap
+
+explainer = shap.TreeExplainer(GB)
+shap_values = explainer(X_train)
+
+shap.plots.beeswarm(shap_values)
+shap.plots.bar(shap_values)
+
+#%% Force plot
+shap.initjs()
+
+# force plot for first row for class 1
+class_idx = 1
+row_idx = 0
+
+expected_value = explainer.expected_value[class_idx]
+shap_value = shap_values[:,:,class_idx].values[row_idx]
+
+shap.force_plot (base_value = expected_value,  shap_values = shap_value,
+                 features = X_train.iloc[row_idx, :], matplotlib=True)
+
+shap_df = pd.DataFrame(shap_values[:,:, 1 ].values, columns = shap_values.feature_names)
