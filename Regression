@@ -1,0 +1,272 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+
+from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_squared_error
+
+#%%
+path = r'C:\Users\ftb19213\Desktop\PhD\2022\Data\SEA'
+file = r'C:\Users\ftb19213\Desktop\PhD\2021\Data\IMPORTANT DATASETS\Model_A.csv'
+validation= r'C:\Users\ftb19213\Desktop\PhD\2021\Data\IMPORTANT DATASETS\External_data_validation.csv'
+data = pd.read_csv(file)
+validation = pd.read_csv(validation)
+
+#%%
+
+# -- DEfining variables
+
+X = data.drop(['FFc', 'Class', '2Classes', 'Material', '2Classes_B'], axis =1)
+y = data[['FFc']]
+
+#%%
+# --- First, split into train and test
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.25, random_state = 42, shuffle = True)
+
+#%%
+
+
+RF = RandomForestRegressor().fit(X, y.values.ravel())
+
+print("RF R2: %.3f" % RF.score(X_test, y_test.values.ravel()))
+#
+# Create the mean squared error
+#
+mse = mean_squared_error(y_test.values.ravel(), RF.predict(X_test))
+print("RF MSE on test set: {:.2f}".format(mse))
+
+rmse = mean_squared_error(y_test.values.ravel(), RF.predict(X_test), squared=False)
+print("RF RMSE on test set: {:.2f}".format(rmse))
+
+mae = mean_absolute_error(y_test.values.ravel(), RF.predict(X_test))
+print("RF MAE on test set: {:.2f}".format(mae))
+
+
+#%% Feature importance
+import seaborn as sns
+
+# Add 'Wall friction angle - PHIE [°]', 'PHIE_class'   when all data file
+# Add '3Classes' when needed
+parameters_list =list(data.columns.drop(['FFc', 'Class', '2Classes', 'Material', '2Classes_B']))
+parameters_list=np.array(parameters_list)
+print(parameters_list)
+
+
+imp_score = pd.Series(RF.feature_importances_, index=parameters_list).sort_values(ascending=False)
+print(imp_score[:5])
+
+
+#Visualising the importance score
+sns.barplot(x=imp_score[:5], y=imp_score.index[:5])
+# Add labels to your graph
+plt.xlabel('Features')
+plt.ylabel('Feature Importance Score')
+plt.title("Visualising Important Features")
+plt.show()
+
+#%%External validation
+
+ext_val_X = validation.drop(['FFc', 'Class', '2Classes', 'Material', '1/ffc', 'log ffc'], axis =1)
+ext_val_y = RF.predict(ext_val_X)
+ext_val_y
+
+#%%
+
+from matplotlib import pyplot
+
+actual_ext_val_y = validation[['FFc']]
+
+pyplot.scatter(ext_val_y,actual_ext_val_y)
+m, b = np.polyfit(ext_val_y,actual_ext_val_y,1)
+plt.plot(ext_val_y, m*ext_val_y+b, color='blue')
+
+plt.title("External validation")
+plt.xlabel("Predicted FFc")
+plt.ylabel("Actual FFc")
+plt.show()
+
+
+#%%
+
+from sklearn.metrics import r2_score
+r2 = r2_score(ext_val_y,actual_ext_val_y)
+print('R2 score for external validation is: %.3f' % r2)
+#%% -- SHAP values SHAP (SHapley Additive exPlanations) is a game theoretic approach to explain the output
+# of any machine learning model. It connects optimal credit allocation with local explanations using the 
+#classic Shapley values from game theory and their related extensions.
+
+# -- import SHAP
+import shap
+shap.initjs()
+
+explainer = shap.Explainer(RF)
+shap_values = explainer(X)
+
+shap.plots.beeswarm(shap_values)
+shap.plots.bar(shap_values)
+
+#%% Froce plot
+
+shap.initjs()
+
+def shap_plot(j):
+    explainer = shap.Explainer(RF)
+    shap_values = explainer.shap_values(ext_val_X)
+    p = shap.force_plot(explainer.expected_value, shap_values[0,:], ext_val_X.iloc[0,:], matplotlib = True, show = False)
+    plt.savefig('tmp.svg')
+    plt.close()
+    return(p)
+
+# --- Force plot that will get the result of the first row of X_test    
+shap_plot(0)
+
+
+#%%
+
+
+# -------------------------- THE SAME FOR RECIPROCAL FFC ---------------------------------------------------
+
+data[['reciprocal_ffc']] = np.reciprocal(data[['FFc']])
+
+
+#%%
+
+X = data.drop(['FFc', 'Class', '2Classes', 'Material', 'reciprocal_ffc', '2Classes_B'], axis =1)
+y = data[['reciprocal_ffc']]
+
+
+#%%
+# --- First, split into train and test
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.25, shuffle = True)
+
+#%%
+from sklearn.ensemble import RandomForestRegressor
+
+RF = RandomForestRegressor().fit(X, y.values.ravel())
+
+print("RF R2: %.3f" % RF.score(X_test, y_test.values.ravel()))
+#
+# Create the mean squared error
+#
+mse = mean_squared_error(y_test.values.ravel(), RF.predict(X_test))
+print("RF MSE on test set: {:.2f}".format(mse))
+
+rmse = mean_squared_error(y_test.values.ravel(), RF.predict(X_test), squared=False)
+print("RF RMSE on test set: {:.2f}".format(rmse))
+
+mae = mean_absolute_error(y_test.values.ravel(), RF.predict(X_test))
+print("RF MAE on test set: {:.2f}".format(mae))
+
+
+#%% Feature importance
+import seaborn as sns
+
+# Add 'Wall friction angle - PHIE [°]', 'PHIE_class'   when all data file
+# Add '3Classes' when needed
+parameters_list =list(data.columns.drop(['FFc', 'Class', '2Classes', 'Material', 'reciprocal_ffc', '2Classes_B']))
+parameters_list=np.array(parameters_list)
+print(parameters_list)
+
+
+imp_score = pd.Series(RF.feature_importances_, index=parameters_list).sort_values(ascending=False)
+print(imp_score[:5])
+
+
+#Visualising the importance score
+sns.barplot(x=imp_score[:5], y=imp_score.index[:5])
+# Add labels to your graph
+plt.xlabel('Features')
+plt.ylabel('Feature Importance Score')
+plt.title("Visualising Important Features")
+plt.show()
+
+#%%External validation
+
+ext_val_X = validation.drop(['FFc', 'Class', '2Classes', 'Material', '1/ffc', 'log ffc'], axis =1)
+ext_val_y = RF.predict(ext_val_X)
+ext_val_y
+
+#%%
+
+from matplotlib import pyplot
+
+actual_ext_val_y = validation[['1/ffc']]
+
+pyplot.scatter(ext_val_y,actual_ext_val_y)
+m, b = np.polyfit(ext_val_y,actual_ext_val_y,1)
+plt.plot(ext_val_y, m*ext_val_y+b, color='blue')
+
+plt.title("External validation")
+plt.xlabel("Predicted 1/FFc")
+plt.ylabel("Actual 1/FFc")
+plt.show()
+
+#%%
+
+from sklearn.metrics import r2_score
+r2 = r2_score(ext_val_y,actual_ext_val_y)
+print('R2 score for external validation is: %.3f' % r2)
+
+
+#%%
+
+# --------- convert the results of the external validation back into FFc ----------------------------
+
+new_ext_val_y = np.reciprocal(ext_val_y)
+new_ext_val_y
+
+#%%
+
+from matplotlib import pyplot
+
+actual_ext_val_y = validation[['FFc']]
+
+pyplot.scatter(new_ext_val_y,actual_ext_val_y)
+m, b = np.polyfit(new_ext_val_y,actual_ext_val_y,1)
+plt.plot(new_ext_val_y, m*new_ext_val_y+b, color='green')
+
+plt.title("External validation")
+plt.xlabel("Predicted FFc")
+plt.ylabel("Actual FFc")
+plt.show()
+
+#%%
+
+from sklearn.metrics import r2_score
+r2 = r2_score(new_ext_val_y,actual_ext_val_y)
+print('R2 score for external validation is: %.3f' % r2)
+
+
+#%% -- SHAP values SHAP (SHapley Additive exPlanations) is a game theoretic approach to explain the output
+# of any machine learning model. It connects optimal credit allocation with local explanations using the 
+#classic Shapley values from game theory and their related extensions.
+
+# -- import SHAP
+import shap
+shap.initjs()
+
+explainer = shap.Explainer(RF)
+shap_values = explainer(X)
+
+shap.plots.beeswarm(shap_values)
+shap.plots.bar(shap_values)
+
+#%% Froce plot
+
+shap.initjs()
+
+def shap_plot(j):
+    explainer = shap.Explainer(RF)
+    shap_values = explainer.shap_values(ext_val_X)
+    p = shap.force_plot(explainer.expected_value, shap_values[2,:], ext_val_X.iloc[2,:], matplotlib = True, show = False)
+    plt.savefig('tmp.svg')
+    plt.close()
+    return(p)
+
+# --- Force plot that will get the result of the first row of X_test    
+shap_plot(2)
