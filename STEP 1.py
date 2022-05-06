@@ -143,12 +143,8 @@ probability
 # of any machine learning model. It connects optimal credit allocation with local explanations using the 
 #classic Shapley values from game theory and their related extensions.
 
-# --- First, split into train and test
+# We will calculate the SHAP values of Random Forest
 
-from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, shuffle = True)
-
-#%%
 import shap
 shap.initjs()
 
