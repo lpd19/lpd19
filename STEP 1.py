@@ -149,29 +149,17 @@ from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, shuffle = True)
 
 #%%
-# -- import SHAP
 import shap
 shap.initjs()
 
-explainer = shap.Explainer(GB)
-shap_values = explainer(X)
+explainer = shap.Explainer(RF)
+shap_values = explainer.shap_values(X)
+shap_obj=explainer(X)
 
-shap.plots.beeswarm(shap_values)
-shap.plots.bar(shap_values)
+shap.summary_plot(shap_values, X)
 
-#%% Froce plot
+shap.summary_plot(shap_values[1], X)
 
-shap.initjs()
-
-#%%
-
-import shap
-
-explainer = shap.TreeExplainer(GB)
-shap_values = explainer(X_train)
-
-shap.plots.beeswarm(shap_values)
-shap.plots.bar(shap_values)
 
 #%% Force plot
 shap.initjs()
